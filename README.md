@@ -1,19 +1,46 @@
 # Query Atlas
 
-A full-stack document upload UI built with a Next.js client and an Express server.
+A full-stack project with a Next.js frontend and Express backend.
 
-## Overview
+## Notes from today
 
-- `client/` contains the Next.js frontend.
-- `server/` contains the Express backend.
+- Created the `server/` folder and initialized an Express backend.
+- Added a basic server entrypoint in `server/index.js`.
+- Fixed server startup issues by importing `cors` and enabling ES module support.
+- Added a `server/.gitignore` file with standard Node and environment ignores.
+- Built the Next.js frontend in `client/` with a document upload UI.
+- Created the upload component in `client/app/components/file-upload.tsx`.
+- Improved UI styling in `client/app/page.tsx` and `client/app/globals.css`.
+- Ensured the interface uses a dark theme with better contrast and polished cards.
+- Confirmed local startup commands for both client and server.
 
-## Features
+## Commands used today
 
-- PDF file upload UI with modern dark styling.
-- Simple split layout for uploading and previewing documents.
-- Tailwind CSS styling in the client.
+```bash
+# Server setup and run
+cd server
+pnpm install
+pnpm dev
 
-## Local setup
+# Client setup and run
+cd ../client
+pnpm install
+pnpm dev
+
+# Installed client icon library
+pnpm install lucide-react
+
+# Installed typing support for Express
+cd ../server
+pnpm i types/express@4.x -D
+```
+
+## Project structure
+
+- `client/` – Next.js frontend using React, Tailwind CSS, and Lucide icons.
+- `server/` – Express backend for future API routes.
+
+## Setup
 
 ### Client
 
@@ -23,19 +50,20 @@ pnpm install
 pnpm dev
 ```
 
-Open `http://localhost:3000` to view the client.
+Then open `http://localhost:3000`.
 
 ### Server
 
 ```bash
 cd server
 pnpm install
+pnpm dev
 ```
 
-The server is currently a basic Express setup and can be extended for API routes.
+The server listens on port `8000` by default.
 
-## Notes
+## Current status
 
-- The client uses Next.js 16 and React 19.
-- The server uses Express 4.
-- Add backend endpoints in `server/` and connect them with client requests as needed.
+- Frontend UI is available and styled.
+- Backend is a minimal Express server ready to add routes.
+- Basic local startup workflow is documented.
