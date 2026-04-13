@@ -67,3 +67,7 @@ The server listens on port `8000` by default.
 - Frontend UI is available and styled.
 - Backend is a minimal Express server ready to add routes.
 - Basic local startup workflow is documented.
+- Fixed file upload storage in `server/index.js` so `multer` uses the configured `diskStorage` instead of default temporary destination behavior.
+- Uploaded PDFs now keep their original `.pdf` extension and are stored in `server/uploads/` with a unique filename prefix.
+- The current upload route is `POST /upload` and expects a form field named `pdf`.
+- Next improvements: add file type validation, return the stored file path or metadata in the upload response, and build backend routes for PDF processing/search.
