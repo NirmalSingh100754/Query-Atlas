@@ -10,6 +10,8 @@ Query Atlas is a full-stack proof-of-concept for document ingestion, file upload
 - `server/` – An Express backend.
   - `server/index.js` exposes a health route and a file upload endpoint.
   - Multer stores uploaded files in `server/uploads/` using a unique timestamped filename.
+- `docker-compose.yml` – Docker Compose configuration for containerized services.
+  - Valkey (in-memory data store) for caching and session management, exposed on port 6379.
 
 ## Current functionality
 
@@ -32,6 +34,8 @@ Query Atlas is a full-stack proof-of-concept for document ingestion, file upload
 - Built with Express.js.
 - Uses `cors` to allow browser requests from the local client.
 - Uses `multer` for file upload handling and persistent storage to disk.
+- Uses `bullmq` for job queue management with Valkey/Redis as the queue broker.
+- Connects to Valkey (in-memory store) on port 6379 for caching and job persistence.
 - Listens on port `8000` by default.
 
 ## How RAG fits in this project
@@ -76,6 +80,14 @@ Common vector database options include:
 - Return relevant document references or text snippets for the RAG prompt.
 
 ## Setup and run
+
+### Docker services
+
+```bash
+docker-compose up
+```
+
+This starts the Valkey service on port 6379, which is required by the backend for job queuing.
 
 ### Server
 
