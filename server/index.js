@@ -1,6 +1,9 @@
 import cors from "cors";
 import express from "express";
 import multer from "multer";
+import {Queue} from "bullmq";
+
+const queue = new Queue("file-upload-queue");
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -26,6 +29,11 @@ app.get("/", (req, res) => {
 });
 
 app.post("/upload", upload.single("pdf"), (req, res) => {
+  queue.add('file-ready', JSON.stringify({
+    filename: req.file.filename,
+    source: req.file.destination,
+    path: req.file.path,
+  }))
   return res.json({
     message: "File uploaded successfully",
     status: "success",
