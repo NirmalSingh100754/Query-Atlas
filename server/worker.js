@@ -17,16 +17,20 @@ const worker = new Worker("file-upload-queue", async (job) => {
     store the chunk in Qudrant DB.
 
     */
-    //Load the PDF file
-    const loader = new PDFLOader(data.path);
+    // Load the PDF file
+    const loader = new PDFLoader(data.path);
     const docs = await loader.load();
-    //Split the documents into chunks
-    const splitter = new CharacterTextSplitter({
+    console.log(`Number of pages in the PDF: ${docs.length}`);
+
+    // Split the PDF into chunks
+    const textSplitter = new CharacterTextSplitter({
+        separator: ".",
         chunkSize: 300,
         chunkOverlap: 0,
     });
-    const chunks = await TextSplitter.splitText(docs);
-    console.log(chunks);
+    const chunks = await textSplitter.splitDocuments(docs);
+    console.log(`Number of chunks created: ${chunks.length}`);
+    console.log(`First chunk:`, chunks[0]);
 },
     {
         concurrency: 100,
