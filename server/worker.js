@@ -14,8 +14,9 @@ const worker = new Worker("file-upload-queue", async (job) => {
 
     // Split into chunks (IMPORTANT for embeddings quality)
     const textSplitter = new CharacterTextSplitter({
-        chunkSize: 500,
-        chunkOverlap: 50,
+        separator: ".",
+        chunkSize: 300,
+        chunkOverlap: 0,
     });
 
     const chunks = await textSplitter.splitDocuments(docs);
