@@ -1,6 +1,6 @@
 # Query Atlas
 
-Query Atlas is a full-stack proof-of-concept for document ingestion, file upload, and Retrieval-Augmented Generation (RAG) retrieval. It combines a Next.js client UI with an Express backend, background processing via BullMQ workers, and Qdrant vector search for chunk retrieval.
+Query Atlas is a full-stack proof-of-concept for document ingestion, file upload, and Retrieval-Augmented Generation (RAG). It combines a Next.js client UI with an Express backend, background processing via BullMQ workers, Qdrant vector retrieval, and Hugging Face-based answer generation.
 
 ## What this project contains
 
@@ -23,7 +23,7 @@ Query Atlas is a full-stack proof-of-concept for document ingestion, file upload
 - The backend exposes:
   - `GET /` health route.
   - `POST /upload` file upload route.
-  - `POST /chat` semantic retrieval route that returns top matching chunks from Qdrant.
+  - `GET /chat` retrieval + generation route that returns a plain-text answer string.
 
 ## Project architecture
 
@@ -62,13 +62,14 @@ Retrieval-Augmented Generation (RAG) is a pattern where a model answers queries 
 5. perform similarity search for query-relevant chunks
 6. use the retrieved context with a language model to generate answers
 
-### How this project currently implements RAG retrieval
+### How this project currently implements RAG
 
 - Uploaded PDFs are parsed and split into chunks in `server/worker.js`.
 - Chunks are embedded with the Hugging Face model `BAAI/bge-base-en-v1.5`.
 - Embeddings are stored in Qdrant collection `pdf_chunks`.
-- `POST /chat` retrieves top-k (`k=5`) matching chunks using vector similarity search.
-- The generation layer (LLM answer synthesis) can be added on top of the retrieved chunk context.
+- `GET /chat` retrieves top-k (`k=3`) matching chunks using a retriever.
+- Retrieved context is passed to Hugging Face LLM `Qwen/Qwen2.5-7B-Instruct` to generate the final answer.
+- If generation is slow or times out, the API returns a fallback answer built from retrieved chunks.
 
 ## Vector database notes
 
@@ -134,29 +135,34 @@ Behavior:
 - stores file in `server/uploads/`
 - enqueues processing job to `file-upload-queue`
 
-### `POST /chat`
+### `GET /chat`
 
-Request body:
+Query params:
+- `query` (optional) – user question
 
-```json
-{
-  "query": "What are the key points from the uploaded PDF?"
-}
+Examples:
+
+```bash
+http://localhost:8000/chat
+http://localhost:8000/chat?query=what%20is%20reinforcement%20learning
 ```
 
-Notes:
+Behavior:
 - If `query` is missing or empty, a default query is used.
-- Returns matched chunks from Qdrant with content and metadata.
+- Returns a plain-text answer string (not JSON).
+- Uses cached answer for repeated queries for 5 minutes.
+- Applies retrieval and generation timeouts to avoid hanging requests.
+- Falls back to a concise retrieval-based answer when LLM generation fails.
 
 ## Required environment variables
 
 In `server/.env`:
 
 - `HF_API_KEY` – Hugging Face API key used for embedding generation and retrieval queries.
+- `TOGETHER_API_KEY` – Together API key used by Hugging Face provider configuration in chat generation.
 
 ## Recommended next steps
 
-- add answer generation (LLM) on top of retrieved chunks from `/chat`
 - add source-aware response formatting (page/file references)
 - add chat/search UI in frontend to call `/chat`
 - add stronger upload validation and file type checks
@@ -174,4 +180,4 @@ In `server/.env`:
 
 ## Notes
 
-This repository currently implements upload + background processing + vector ingestion + semantic retrieval. It does not yet generate final natural-language answers from retrieved chunks, but the retrieval pipeline is active and ready for that layer.
+This repository currently implements upload + background processing + vector ingestion + retrieval + LLM answer generation with fallback handling. The API is functional for end-to-end document-grounded responses.
