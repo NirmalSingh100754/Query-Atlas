@@ -22,7 +22,7 @@ const FileUploadComponent = () => {
     };
   return (
     <div className="w-full max-w-sm rounded-[32px] border border-slate-700 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-8 shadow-2xl shadow-slate-950/40">
-      <div onClick={handleFileUploadClick} className="flex flex-col justify-center items-center gap-4 text-center text-slate-100">
+      <div onClick={handleFileUploadClick} className="flex flex-col justify-center items-center gap-4 text-center text-slate-100 cursor-pointer">
         <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-slate-800/90 border border-slate-700">
           <Upload className="h-10 w-10 text-indigo-400" />
         </div>
