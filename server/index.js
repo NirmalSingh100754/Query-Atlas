@@ -51,7 +51,7 @@ app.post("/upload", upload.single("pdf"), (req, res) => {
 
 app.get("/chat", async (req, res) => {
   try {
-    const defaultQuery = "what is reinforcement learning";
+    const defaultQuery = "What are the key points from the uploaded PDF?";
     const userQuery = req.query?.query?.trim() || defaultQuery;
 
     const embeddings = new HuggingFaceInferenceEmbeddings({
