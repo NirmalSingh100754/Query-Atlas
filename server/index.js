@@ -4,7 +4,46 @@ import multer from "multer";
 import {Queue} from "bullmq";
 import "dotenv/config";
 import { HuggingFaceInferenceEmbeddings } from "@langchain/community/embeddings/hf";
+import { HuggingFaceInference } from "@langchain/community/llms/hf";
 import { QdrantVectorStore } from "@langchain/qdrant";
+
+
+const llm = new HuggingFaceInference({
+  apiKey: process.env.HF_API_KEY,
+  model: "Qwen/Qwen2.5-7B-Instruct",
+  temperature: 0,
+  maxNewTokens: 180,
+  provider: "together",
+  together: {
+    apiKey: process.env.TOGETHER_API_KEY,
+  },
+});
+
+const embeddings = new HuggingFaceInferenceEmbeddings({
+  apiKey: process.env.HF_API_KEY,
+  model: "BAAI/bge-base-en-v1.5",
+});
+
+let retrieverPromise;
+
+const withTimeout = (promise, timeoutMs, timeoutMessage) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+    }),
+  ]);
+
+const getRetriever = async () => {
+  if (!retrieverPromise) {
+    retrieverPromise = QdrantVectorStore.fromExistingCollection(embeddings, {
+      url: "http://localhost:6333",
+      collectionName: "pdf_chunks",
+    }).then((vectorStore) => vectorStore.asRetriever({ k: 5 }));
+  }
+  return retrieverPromise;
+};
+
 
 const queue = new Queue("file-upload-queue", {
     connection: {
@@ -53,41 +92,72 @@ app.get("/chat", async (req, res) => {
   try {
     const defaultQuery = "What are the key points from the uploaded PDF?";
     const userQuery = req.query?.query?.trim() || defaultQuery;
-
-    const embeddings = new HuggingFaceInferenceEmbeddings({
-      apiKey: process.env.HF_API_KEY,
-      model: "BAAI/bge-base-en-v1.5",
-    });
-
-    const vectorStore = await QdrantVectorStore.fromExistingCollection(
-      embeddings,
-      {
-        url: "http://localhost:6333",
-        collectionName: "pdf_chunks",
-      }
+    const retriever = await withTimeout(
+      getRetriever(),
+      10_000,
+      "Retriever initialization timed out."
+    );
+    const results = await withTimeout(
+      retriever.invoke(userQuery),
+      15_000,
+      "Retrieval timed out."
     );
 
-    const retriever = vectorStore.asRetriever({
-      k: 5,
-    });
+    if (!results.length) {
+      return res
+        .type("text/plain")
+        .send("I could not find relevant context in uploaded documents.");
+    }
 
-    const results = await retriever.invoke(userQuery);
+    const context = results
+      .map((doc, index) => `Chunk ${index + 1}:\n${doc.pageContent}`)
+      .join("\n\n");
 
-    return res.json({
-      status: "success",
-      query: userQuery,
-      matches: results.map((doc, index) => ({
-        id: index + 1,
-        content: doc.pageContent,
-        metadata: doc.metadata,
-      })),
-    });
+    const prompt = `
+You are a helpful assistant that answers questions using only the provided context from uploaded PDFs.
+If the context is not enough, say you do not have enough information from the uploaded documents.
+
+Question:
+${userQuery}
+
+Context:
+${context}
+
+Answer:
+`;
+
+    let answerText = "";
+    try {
+      const answer = await withTimeout(
+        llm.invoke(prompt),
+        8_000,
+        "Generation timed out."
+      );
+      answerText = typeof answer === "string" ? answer.trim() : String(answer ?? "").trim();
+    } catch (generationError) {
+      console.error("LLM generation failed, using fallback answer:", generationError.message);
+    }
+
+    if (!answerText) {
+      const fallbackContext = results
+        .slice(0, 2)
+        .map((doc) => doc.pageContent?.trim())
+        .filter(Boolean)
+        .join(" ");
+
+      const compactFallback = fallbackContext.replace(/\s+/g, " ").slice(0, 1000);
+      answerText = compactFallback
+        ? `Based on retrieved documents: ${compactFallback}`
+        : "I could not generate an answer from the retrieved context.";
+    }
+
+    return res.type("text/plain").send(answerText);
   } catch (error) {
     console.error("Error fetching chat results from Qdrant:", error);
-    return res.status(500).json({
-      status: "error",
-      message: "Failed to fetch data from Qdrant.",
-    });
+    return res
+      .status(500)
+      .type("text/plain")
+      .send(`Failed to generate answer: ${error.message}`);
   }
 });
 
