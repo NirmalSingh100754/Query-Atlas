@@ -49,10 +49,10 @@ app.post("/upload", upload.single("pdf"), (req, res) => {
   });
 });
 
-app.post("/chat", async (req, res) => {
+app.get("/chat", async (req, res) => {
   try {
-    const defaultQuery = "Summarize the important points from the uploaded documents.";
-    const userQuery = req.body?.query?.trim() || defaultQuery;
+    const defaultQuery = "what is reinforcement learning";
+    const userQuery = req.query?.query?.trim() || defaultQuery;
 
     const embeddings = new HuggingFaceInferenceEmbeddings({
       apiKey: process.env.HF_API_KEY,
@@ -67,7 +67,11 @@ app.post("/chat", async (req, res) => {
       }
     );
 
-    const results = await vectorStore.similaritySearch(userQuery, 5);
+    const retriever = vectorStore.asRetriever({
+      k: 5,
+    });
+
+    const results = await retriever.invoke(userQuery);
 
     return res.json({
       status: "success",
