@@ -12,7 +12,7 @@ const llm = new HuggingFaceInference({
   apiKey: process.env.HF_API_KEY,
   model: "Qwen/Qwen2.5-7B-Instruct",
   temperature: 0,
-  maxNewTokens: 180,
+  maxNewTokens: 120,
   provider: "together",
   together: {
     apiKey: process.env.TOGETHER_API_KEY,
@@ -25,6 +25,8 @@ const embeddings = new HuggingFaceInferenceEmbeddings({
 });
 
 let retrieverPromise;
+const answerCache = new Map();
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
 const withTimeout = (promise, timeoutMs, timeoutMessage) =>
   Promise.race([
@@ -39,7 +41,7 @@ const getRetriever = async () => {
     retrieverPromise = QdrantVectorStore.fromExistingCollection(embeddings, {
       url: "http://localhost:6333",
       collectionName: "pdf_chunks",
-    }).then((vectorStore) => vectorStore.asRetriever({ k: 5 }));
+    }).then((vectorStore) => vectorStore.asRetriever({ k: 3 }));
   }
   return retrieverPromise;
 };
@@ -92,6 +94,13 @@ app.get("/chat", async (req, res) => {
   try {
     const defaultQuery = "What are the key points from the uploaded PDF?";
     const userQuery = req.query?.query?.trim() || defaultQuery;
+    const cacheKey = userQuery.toLowerCase();
+    const cached = answerCache.get(cacheKey);
+
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      return res.type("text/plain").send(cached.answer);
+    }
+
     const retriever = await withTimeout(
       getRetriever(),
       10_000,
@@ -110,7 +119,10 @@ app.get("/chat", async (req, res) => {
     }
 
     const context = results
-      .map((doc, index) => `Chunk ${index + 1}:\n${doc.pageContent}`)
+      .map((doc, index) => {
+        const compact = (doc.pageContent || "").replace(/\s+/g, " ").slice(0, 450);
+        return `Chunk ${index + 1}:\n${compact}`;
+      })
       .join("\n\n");
 
     const prompt = `
@@ -151,6 +163,7 @@ Answer:
         : "I could not generate an answer from the retrieved context.";
     }
 
+    answerCache.set(cacheKey, { answer: answerText, timestamp: Date.now() });
     return res.type("text/plain").send(answerText);
   } catch (error) {
     console.error("Error fetching chat results from Qdrant:", error);
