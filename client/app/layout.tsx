@@ -43,24 +43,12 @@ export default function RootLayout({
 
             <div className="flex items-center gap-3">
               <Show when="signed-out">
-                <SignInButton mode="modal">
-                  <button className="rounded-full border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-100 transition hover:border-cyan-300 hover:text-white">
-                    Sign in
-                  </button>
-                </SignInButton>
-                <SignUpButton mode="modal">
-                  <button className="rounded-full bg-cyan-500 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-cyan-400">
-                    Sign up
-                  </button>
-                </SignUpButton>
+                <SignInButton mode="modal" />
+                <SignUpButton mode="modal" />
               </Show>
 
               <Show when="signed-in">
-                <SignOutButton>
-                  <button className="rounded-full border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-100 transition hover:border-slate-500 hover:text-white">
-                    Sign out
-                  </button>
-                </SignOutButton>
+                <SignOutButton />
               </Show>
             </div>
           </header>
@@ -81,16 +69,8 @@ export default function RootLayout({
                     </p>
 
                     <div className="mt-10 flex flex-col gap-3 sm:flex-row">
-                      <SignInButton mode="modal">
-                        <button className="w-full rounded-full bg-slate-800 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 sm:w-auto">
-                          Sign in
-                        </button>
-                      </SignInButton>
-                      <SignUpButton mode="modal">
-                        <button className="w-full rounded-full border border-slate-600 bg-transparent px-5 py-3 text-sm font-semibold text-slate-100 transition hover:border-cyan-300 sm:w-auto">
-                          Create account
-                        </button>
-                      </SignUpButton>
+                      <SignInButton mode="modal" />
+                      <SignUpButton mode="modal" />
                     </div>
                   </div>
 
