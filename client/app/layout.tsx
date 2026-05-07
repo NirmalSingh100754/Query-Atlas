@@ -32,8 +32,8 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-        <body className="h-screen overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100">
-          <header className="flex items-center justify-between px-6 py-5 border-b border-slate-700 bg-slate-900/90 backdrop-blur-sm">
+        <body className="flex h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100">
+          <header className="shrink-0 flex items-center justify-between px-6 py-5 border-b border-slate-700 bg-slate-900/90 backdrop-blur-sm">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
                 Query Atlas
@@ -53,7 +53,7 @@ export default function RootLayout({
             </div>
           </header>
 
-          <main className="flex flex-col items-center justify-center">
+          <main className="flex-1 min-h-0">
             <Show when="signed-out">
               <div className="w-full max-w-4xl rounded-[32px] border border-slate-700 bg-slate-900/90 p-10 shadow-2xl shadow-slate-950/20 backdrop-blur-xl mt-20">
                 <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
