@@ -1,55 +1,55 @@
 # Query Atlas
 
-Query Atlas is a full-stack proof-of-concept for document ingestion, file upload, and Retrieval-Augmented Generation (RAG) retrieval. It combines a Next.js client UI with an Express backend, background processing via BullMQ workers, and Qdrant vector search for chunk retrieval.
+Query Atlas is a full-stack PDF Q&A app. It combines a Next.js frontend with Clerk auth, an Express backend, BullMQ worker-based ingestion, and Qdrant retrieval to support RAG-style answers over uploaded documents.
 
 ## What this project contains
 
-- `client/` – A Next.js frontend application.
-  - `app/page.tsx` renders the upload screen.
-  - `app/components/file-upload.tsx` provides PDF upload UX and sends files to the backend.
-- `server/` – An Express backend.
-  - `server/index.js` exposes health, file upload, and chat retrieval endpoints.
-  - `server/worker.js` processes uploaded PDFs, creates chunks, generates embeddings, and stores vectors in Qdrant.
-  - Multer stores uploaded files in `server/uploads/` using a unique timestamped filename.
-- `docker-compose.yml` – Docker Compose configuration for containerized services.
-  - Valkey (in-memory data store) for caching and session management, exposed on port 6379.
+- `client/` - Next.js frontend app.
+  - `app/layout.tsx` - Header + auth actions and signed-in/signed-out views.
+  - `app/page.tsx` - Two-panel screen (upload + chat area) below header.
+  - `app/components/file-upload.tsx` - PDF upload UI that posts to backend.
+  - `app/components/chat.tsx` - Multi-turn chat UI (user/assistant message history).
+- `server/` - Express backend.
+  - `server/index.js` - Health, upload, and chat answer endpoints.
+  - `server/worker.js` - PDF parsing/chunking/embedding + Qdrant ingestion.
+  - `server/uploads/` - Uploaded PDFs stored via Multer.
+- `docker-compose.yml` - Local Valkey service for BullMQ.
 
 ## Current functionality
 
-- The frontend accepts a single `.pdf` file via a clickable upload button.
-- The uploaded file is sent as `multipart/form-data` to `http://localhost:8000/upload`.
-- The backend stores incoming PDFs in `server/uploads/` and enqueues a BullMQ job.
-- The worker loads each PDF, splits it into chunks, generates embeddings with Hugging Face, and uploads vectors to Qdrant collection `pdf_chunks`.
-- The backend exposes:
-  - `GET /` health route.
-  - `POST /upload` file upload route.
-  - `POST /chat` semantic retrieval route that returns top matching chunks from Qdrant.
+- Clerk-based sign in/sign up/sign out in the header.
+- Upload a PDF from the left panel (`POST /upload`).
+- Worker processes uploaded PDFs and stores embeddings in Qdrant (`pdf_chunks`).
+- Ask questions in the chat panel on the right.
+- Chat keeps conversation history in the UI (messages append in order).
+- Backend retrieves relevant chunks and generates an answer.
+- If generation fails/times out, backend returns a cleaned fallback answer from retrieved context.
 
 ## Project architecture
 
 ### Frontend
 
-- Built with Next.js App Router.
-- Uses React client components for file upload behavior.
-- Uses `lucide-react` for icons.
-- Currently implements only the upload interface and no search or chat UI yet.
+- Built with Next.js App Router + React client components.
+- Uses Clerk for auth UI states.
+- Uses shadcn UI components (`Input`, `Button`) in chat/upload flows.
+- Layout is structured as fixed header + content area below it to avoid overlap issues.
+- Chat supports:
+  - Enter key send
+  - loading state while assistant responds
+  - auto-scroll to latest message
 
 ### Backend
 
 - Built with Express.js.
-- Uses `cors` to allow browser requests from the local client.
-- Uses `multer` for file upload handling and persistent storage to disk.
-- Uses `bullmq` for job queue management with Valkey/Redis as the queue broker.
-- Connects to Valkey (in-memory store) on port 6379 for caching and job persistence.
-- Uses LangChain integrations with:
-  - `@langchain/community` for Hugging Face embeddings and PDF loading.
-  - `@langchain/qdrant` for vector similarity search.
-- Uses Qdrant on port 6333 with collection `pdf_chunks`.
-- Listens on port `8000` by default.
+- Uses `cors`, `multer`, and `bullmq`.
+- Uses LangChain + Hugging Face embeddings + Qdrant vector retrieval.
+- Uses Hugging Face Inference LLM (`Qwen/Qwen2.5-7B-Instruct`, Together provider) for answer generation.
+- Uses retrieval/generation timeouts with graceful fallback behavior.
+- Runs on port `8000`.
 
 ## How RAG fits in this project
 
-This project is intended to grow into a RAG-enabled document search application. The current upload flow is the first stage in that pipeline.
+This app already implements a practical RAG pipeline for PDFs.
 
 ### What is RAG?
 
@@ -62,13 +62,14 @@ Retrieval-Augmented Generation (RAG) is a pattern where a model answers queries 
 5. perform similarity search for query-relevant chunks
 6. use the retrieved context with a language model to generate answers
 
-### How this project currently implements RAG retrieval
+### How this project currently implements RAG
 
 - Uploaded PDFs are parsed and split into chunks in `server/worker.js`.
 - Chunks are embedded with the Hugging Face model `BAAI/bge-base-en-v1.5`.
 - Embeddings are stored in Qdrant collection `pdf_chunks`.
-- `POST /chat` retrieves top-k (`k=5`) matching chunks using vector similarity search.
-- The generation layer (LLM answer synthesis) can be added on top of the retrieved chunk context.
+- `GET /chat` retrieves top-k (`k=5`) matching chunks using vector similarity search.
+- Retrieved context is used to prompt the LLM for final answer text.
+- If LLM generation fails, a compact context-based fallback is returned.
 
 ## Vector database notes
 
@@ -87,7 +88,7 @@ Common vector database options include:
 
 - Store embedding vectors for document chunks.
 - Support fast nearest-neighbor search for query embeddings.
-- Return relevant document references or text snippets for the RAG prompt.
+- Return relevant context snippets for the RAG prompt.
 
 ## Setup and run
 
@@ -97,7 +98,7 @@ Common vector database options include:
 docker-compose up
 ```
 
-This starts the Valkey service on port 6379, which is required by the backend for job queuing.
+This starts Valkey on port `6379` for BullMQ.
 
 ### Server
 
@@ -134,44 +135,44 @@ Behavior:
 - stores file in `server/uploads/`
 - enqueues processing job to `file-upload-queue`
 
-### `POST /chat`
+### `GET /chat`
 
-Request body:
+Query params:
 
-```json
-{
-  "query": "What are the key points from the uploaded PDF?"
-}
-```
+- `query` (string, optional)
 
 Notes:
-- If `query` is missing or empty, a default query is used.
-- Returns matched chunks from Qdrant with content and metadata.
+- If `query` is missing/empty, backend uses a default query.
+- Response type is `text/plain` (assistant answer string).
+- Internally performs retrieval + generation with timeout guards.
 
 ## Required environment variables
 
 In `server/.env`:
 
-- `HF_API_KEY` – Hugging Face API key used for embedding generation and retrieval queries.
+- `HF_API_KEY` - used for embeddings and inference.
+- `TOGETHER_API_KEY` - used by Together provider for LLM generation.
 
 ## Recommended next steps
 
-- add answer generation (LLM) on top of retrieved chunks from `/chat`
-- add source-aware response formatting (page/file references)
-- add chat/search UI in frontend to call `/chat`
-- add stronger upload validation and file type checks
-- add retry/error handling and monitoring for worker jobs
+- Add source citations (chunk/page metadata) in chat answers.
+- Add streaming responses in chat UI.
+- Add per-file filtering for retrieval (query within selected document).
+- Add stronger upload validation + size limits + duplicate handling.
+- Add retry/observability dashboards for worker and LLM calls.
 
 ## File structure
 
-- `client/` – Next.js app
-  - `app/` – frontend pages and components
-  - `components/file-upload.tsx` – upload component
-- `server/` – backend server
-  - `index.js` – Express server and API routes (`/`, `/upload`, `/chat`)
-  - `worker.js` – BullMQ worker for PDF chunking + embeddings + Qdrant insertion
-  - `uploads/` – stored PDF uploads
+- `client/` - Next.js app
+  - `app/layout.tsx` - global layout + auth header
+  - `app/page.tsx` - upload/chat split layout
+  - `app/components/file-upload.tsx` - upload UI
+  - `app/components/chat.tsx` - multi-turn chat UI
+- `server/` - backend API + worker
+  - `index.js` - routes (`/`, `/upload`, `/chat`)
+  - `worker.js` - ingestion/chunking/embeddings/Qdrant upsert
+  - `uploads/` - stored PDFs
 
 ## Notes
 
-This repository currently implements upload + background processing + vector ingestion + semantic retrieval. It does not yet generate final natural-language answers from retrieved chunks, but the retrieval pipeline is active and ready for that layer.
+This repository now supports end-to-end local flow: sign in, upload PDF, ask questions, and receive generated answers grounded in retrieved chunks.
