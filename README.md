@@ -1,6 +1,6 @@
 # Query Atlas
 
-Query Atlas is a full-stack proof-of-concept for document ingestion, file upload, and the foundations of a Retrieval-Augmented Generation (RAG) search workflow. It combines a Next.js client UI with an Express backend for file handling today, and is designed to evolve into a vector-enabled search + answer system.
+Query Atlas is a full-stack proof-of-concept for document ingestion, file upload, and Retrieval-Augmented Generation (RAG) retrieval. It combines a Next.js client UI with an Express backend, background processing via BullMQ workers, and Qdrant vector search for chunk retrieval.
 
 ## What this project contains
 
@@ -8,7 +8,8 @@ Query Atlas is a full-stack proof-of-concept for document ingestion, file upload
   - `app/page.tsx` renders the upload screen.
   - `app/components/file-upload.tsx` provides PDF upload UX and sends files to the backend.
 - `server/` – An Express backend.
-  - `server/index.js` exposes a health route and a file upload endpoint.
+  - `server/index.js` exposes health, file upload, and chat retrieval endpoints.
+  - `server/worker.js` processes uploaded PDFs, creates chunks, generates embeddings, and stores vectors in Qdrant.
   - Multer stores uploaded files in `server/uploads/` using a unique timestamped filename.
 - `docker-compose.yml` – Docker Compose configuration for containerized services.
   - Valkey (in-memory data store) for caching and session management, exposed on port 6379.
@@ -17,8 +18,12 @@ Query Atlas is a full-stack proof-of-concept for document ingestion, file upload
 
 - The frontend accepts a single `.pdf` file via a clickable upload button.
 - The uploaded file is sent as `multipart/form-data` to `http://localhost:8000/upload`.
-- The backend stores incoming PDFs in `server/uploads/`.
-- The backend also exposes a simple `/` health route that returns a JSON status message.
+- The backend stores incoming PDFs in `server/uploads/` and enqueues a BullMQ job.
+- The worker loads each PDF, splits it into chunks, generates embeddings with Hugging Face, and uploads vectors to Qdrant collection `pdf_chunks`.
+- The backend exposes:
+  - `GET /` health route.
+  - `POST /upload` file upload route.
+  - `POST /chat` semantic retrieval route that returns top matching chunks from Qdrant.
 
 ## Project architecture
 
@@ -36,6 +41,10 @@ Query Atlas is a full-stack proof-of-concept for document ingestion, file upload
 - Uses `multer` for file upload handling and persistent storage to disk.
 - Uses `bullmq` for job queue management with Valkey/Redis as the queue broker.
 - Connects to Valkey (in-memory store) on port 6379 for caching and job persistence.
+- Uses LangChain integrations with:
+  - `@langchain/community` for Hugging Face embeddings and PDF loading.
+  - `@langchain/qdrant` for vector similarity search.
+- Uses Qdrant on port 6333 with collection `pdf_chunks`.
 - Listens on port `8000` by default.
 
 ## How RAG fits in this project
@@ -53,12 +62,13 @@ Retrieval-Augmented Generation (RAG) is a pattern where a model answers queries 
 5. perform similarity search for query-relevant chunks
 6. use the retrieved context with a language model to generate answers
 
-### How this project can evolve into RAG
+### How this project currently implements RAG retrieval
 
-- Uploaded PDFs can be parsed and split into text chunks.
-- Each chunk can be embedded using an embedding model (OpenAI, Cohere, etc.).
-- The resulting vectors can be stored in a vector database for fast similarity search.
-- A query API can retrieve the top-k matching chunks and forward them to a generative model.
+- Uploaded PDFs are parsed and split into chunks in `server/worker.js`.
+- Chunks are embedded with the Hugging Face model `BAAI/bge-base-en-v1.5`.
+- Embeddings are stored in Qdrant collection `pdf_chunks`.
+- `POST /chat` retrieves top-k (`k=5`) matching chunks using vector similarity search.
+- The generation layer (LLM answer synthesis) can be added on top of the retrieved chunk context.
 
 ## Vector database notes
 
@@ -109,14 +119,48 @@ pnpm dev
 
 Then open `http://localhost:3000`.
 
+## API reference
+
+### `GET /`
+
+Returns server health status.
+
+### `POST /upload`
+
+Accepts one file field:
+- `pdf` (multipart file)
+
+Behavior:
+- stores file in `server/uploads/`
+- enqueues processing job to `file-upload-queue`
+
+### `POST /chat`
+
+Request body:
+
+```json
+{
+  "query": "What are the key points from the uploaded PDF?"
+}
+```
+
+Notes:
+- If `query` is missing or empty, a default query is used.
+- Returns matched chunks from Qdrant with content and metadata.
+
+## Required environment variables
+
+In `server/.env`:
+
+- `HF_API_KEY` – Hugging Face API key used for embedding generation and retrieval queries.
+
 ## Recommended next steps
 
-- add PDF parsing and chunking logic in the backend
-- generate embeddings for document text
-- integrate a vector database for semantic search
-- build a query API that returns relevant chunks
-- add a chat/search UI in the frontend for user queries
-- add file validation and upload response metadata
+- add answer generation (LLM) on top of retrieved chunks from `/chat`
+- add source-aware response formatting (page/file references)
+- add chat/search UI in frontend to call `/chat`
+- add stronger upload validation and file type checks
+- add retry/error handling and monitoring for worker jobs
 
 ## File structure
 
@@ -124,9 +168,10 @@ Then open `http://localhost:3000`.
   - `app/` – frontend pages and components
   - `components/file-upload.tsx` – upload component
 - `server/` – backend server
-  - `index.js` – Express server and upload route
+  - `index.js` – Express server and API routes (`/`, `/upload`, `/chat`)
+  - `worker.js` – BullMQ worker for PDF chunking + embeddings + Qdrant insertion
   - `uploads/` – stored PDF uploads
 
 ## Notes
 
-This repository currently implements the upload scaffold and documents the intended RAG/vector workflow. The actual vector embedding and semantic search layers are not yet implemented, but the project is structured to support them next.
+This repository currently implements upload + background processing + vector ingestion + semantic retrieval. It does not yet generate final natural-language answers from retrieved chunks, but the retrieval pipeline is active and ready for that layer.
