@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { Worker } from "bullmq";
-import { HuggingFaceInferenceEmbeddings } from "@langchain/community/embeddings/hf";import { QdrantVectorStore } from "@langchain/qdrant";
+import { HuggingFaceInferenceEmbeddings } from "@langchain/community/embeddings/hf";
+import { QdrantVectorStore } from "@langchain/qdrant";
 import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { CharacterTextSplitter } from "@langchain/textsplitters";
 
@@ -39,7 +40,7 @@ const worker = new Worker("file-upload-queue", async (job) => {
     // Store embeddings
     await vectorStore.addDocuments(chunks);
 
-    console.log(`✅ BGE embeddings stored in Qdrant!`);
+    console.log(`BGE embeddings stored in Qdrant!`);
 },
 {
     concurrency: 100,
