@@ -145,9 +145,13 @@ Answer:
         .filter(Boolean)
         .join(" ");
 
-      const compactFallback = fallbackContext.replace(/\s+/g, " ").slice(0, 1000);
+      const compactFallback = fallbackContext
+        .replace(/\s+/g, " ")
+        // Remove common filename-like headers from chunk starts.
+        .replace(/^[A-Za-z0-9._-]+\.(pdf|docx|txt)\s*[:-]\s*/i, "")
+        .slice(0, 1000);
       answerText = compactFallback
-        ? `Based on retrieved documents: ${compactFallback}`
+        ? compactFallback
         : "I could not generate an answer from the retrieved context.";
     }
 
