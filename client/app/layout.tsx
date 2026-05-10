@@ -8,6 +8,8 @@ import {
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,17 +33,19 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-        <body className="flex h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100">
-          <header className="shrink-0 flex items-center justify-between px-6 py-5 border-b border-slate-700 bg-slate-900/90 backdrop-blur-sm">
+      <ThemeProvider defaultTheme="system" storageKey="query-atlas-theme">
+        <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+        <body className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
+          <header className="shrink-0 flex items-center justify-between px-8 py-4 border-b border-border bg-background/80 backdrop-blur-sm">
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+              <p className="text-xs font-medium tracking-widest text-muted-foreground uppercase">
                 Query Atlas
               </p>
-              <h1 className="text-lg font-semibold text-white">Document AI search</h1>
+              <h1 className="text-lg font-semibold text-foreground">Document Search</h1>
             </div>
 
             <div className="flex items-center gap-3">
+              <ThemeToggle />
               <Show when="signed-out">
                 <SignInButton mode="modal" />
                 <SignUpButton mode="modal" />
@@ -55,17 +59,17 @@ export default function RootLayout({
 
           <main className="flex-1 min-h-0">
             <Show when="signed-out">
-              <div className="w-full max-w-4xl rounded-[32px] border border-slate-700 bg-slate-900/90 p-10 shadow-2xl shadow-slate-950/20 backdrop-blur-xl mt-20">
-                <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+              <div className="w-full max-w-4xl mx-auto rounded-2xl border border-border bg-card p-12 shadow-lg mt-16">
+                <div className="grid gap-12 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
                   <div>
-                    <p className="mb-4 text-sm uppercase tracking-[0.35em] text-cyan-300/80">
-                      Welcome back
+                    <p className="mb-3 text-sm font-medium tracking-wide text-primary">
+                      Welcome
                     </p>
-                    <h2 className="text-4xl font-semibold tracking-tight text-slate-100 sm:text-5xl">
+                    <h2 className="text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
                       Sign in to upload PDFs and search your documents.
                     </h2>
-                    <p className="mt-6 max-w-xl text-base leading-8 text-slate-300">
-                      Query Atlas is ready to become your document AI assistant. Sign in or create an account to start ingesting files, building semantic search, and exploring documents with AI.
+                    <p className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground">
+                      Query Atlas helps you search through your documents intelligently. Sign in or create an account to start uploading files and exploring your content.
                     </p>
 
                     <div className="mt-10 flex flex-col gap-3 sm:flex-row">
@@ -74,15 +78,15 @@ export default function RootLayout({
                     </div>
                   </div>
 
-                  <div className="rounded-[28px] border border-slate-700 bg-slate-900/85 p-8 text-slate-300 shadow-lg shadow-slate-950/10">
-                    <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/80">
+                  <div className="rounded-xl border border-border bg-muted/50 p-8 text-muted-foreground">
+                    <p className="text-sm font-medium tracking-wide text-primary">
                       What you can do
                     </p>
-                    <ul className="mt-6 space-y-4 text-sm leading-7">
-                      <li>• Upload PDF documents securely.</li>
-                      <li>• Store files for future search and AI enrichment.</li>
-                      <li>• Prepare the app for vector search and RAG workflows.</li>
-                      <li>• Use Clerk-based auth to protect your workspace.
+                    <ul className="mt-6 space-y-4 text-sm leading-relaxed">
+                      <li>• Upload PDF documents securely</li>
+                      <li>• Search through your document content</li>
+                      <li>• Get intelligent answers from your files</li>
+                      <li>• Keep your workspace protected with secure authentication
                       </li>
                     </ul>
                   </div>
@@ -94,6 +98,7 @@ export default function RootLayout({
           </main>
         </body>
       </html>
+      </ThemeProvider>
     </ClerkProvider>
   );
 }

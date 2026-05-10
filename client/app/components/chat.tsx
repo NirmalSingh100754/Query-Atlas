@@ -42,17 +42,19 @@ const ChatComponent: React.FC = () => {
 
   return (
     <div className="flex h-full w-full flex-col p-4">
-      <div className="flex-1 space-y-3 overflow-y-auto pr-2">
+      <div className="flex-1 space-y-4 overflow-y-auto pr-2">
         {messages.length === 0 ? (
-          <p className="text-sm text-slate-400">Ask a question to start the conversation.</p>
+          <div className="flex items-center justify-center h-full">
+            <p className="text-sm text-muted-foreground">Ask a question to start the conversation</p>
+          </div>
         ) : (
           messages.map((msg, idx) => (
             <div
               key={`${msg.role}-${idx}`}
-              className={`max-w-[90%] rounded-xl px-4 py-3 text-sm ${
+              className={`max-w-[85%] rounded-2xl px-5 py-3 text-sm animate-in fade-in slide-in-from-bottom-2 duration-300 ${
                 msg.role === "user"
-                  ? "ml-auto bg-cyan-500 text-slate-950"
-                  : "mr-auto bg-slate-800 text-slate-100"
+                  ? "ml-auto bg-primary text-primary-foreground shadow-sm"
+                  : "mr-auto bg-muted text-foreground"
               }`}
             >
               {msg.content}
@@ -60,7 +62,7 @@ const ChatComponent: React.FC = () => {
           ))
         )}
         {isSending && (
-          <div className="mr-auto rounded-xl bg-slate-800 px-4 py-3 text-sm text-slate-300">
+          <div className="mr-auto rounded-2xl bg-muted px-5 py-3 text-sm text-muted-foreground animate-pulse">
             Thinking...
           </div>
         )}
@@ -78,7 +80,7 @@ const ChatComponent: React.FC = () => {
             }
           }}
           className="w-full"
-          placeholder="Ask me anything"
+          placeholder="Type your question..."
         />
         <Button onClick={handleSendChatMessage} disabled={!message.trim() || isSending} className="cursor-pointer">
           Send
